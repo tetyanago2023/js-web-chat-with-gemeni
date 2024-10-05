@@ -6,28 +6,36 @@ import cors from 'cors';
 dotenv.config();
 
 const app = express();
-const client = new GoogleGenerativeAI(process.env.API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
 app.use(express.json());
 app.use(cors());  // Enable CORS for all routes
 
+// Endpoint to handle prompt and stream response from Gemini AI
 app.post('/api/generate', async (req, res) => {
     const { prompt } = req.body;
-    console.log('Received prompt:', prompt);
 
     try {
-        const response = await client.generateText({
-            model: 'gemini-1.5-flash',  // Specify the model you want to use
-            prompt: prompt
-        });
+        // Get the model
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        if (response.candidates.length > 0) {
-            res.json({ response: response.candidates[0].output });
-        } else {
-            res.status(400).json({ error: 'No response from AI' });
+        // Generate content stream from the prompt
+        const result = await model.generateContentStream(prompt);
+
+        // Prepare to stream the response
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Transfer-Encoding', 'chunked');
+
+        // Stream the response as chunks
+        for await (const chunk of result.stream) {
+            res.write(chunk.text());
         }
+
+        // End the stream
+        res.end();
+
     } catch (error) {
-        console.error('Error generating response:', error);  // Log the error details
+        console.error('Error generating response:', error);
         res.status(500).json({ error: 'Error generating response' });
     }
 });

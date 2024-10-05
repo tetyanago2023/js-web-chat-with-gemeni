@@ -24,12 +24,22 @@ async function sendPrompt() {
         });
 
         if (!response.ok) {
-            const errorResponse = await response.json(); // Get the error message from the response
-            throw new Error(errorResponse.error || 'Network response was not ok');
+            throw new Error('Network response was not ok');
         }
 
-        const data = await response.json();  // Parse the response from the server
-        displayMessage('AI', data.response);  // Display the AI's response
+        // Read the streamed response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let done = false;
+
+        displayMessage('AI', '');  // Start with an empty message for AI
+
+        while (!done) {
+            const { value, done: streamDone } = await reader.read();
+            done = streamDone;
+            const chunkText = decoder.decode(value, { stream: true });
+            appendToLastMessage('AI', chunkText);  // Append each chunk to the last AI message
+        }
     } catch (error) {
         console.error('Error:', error);
         displayMessage('AI', 'Sorry, there was an error processing your request.');
@@ -43,4 +53,14 @@ function displayMessage(sender, message) {
     messageDiv.innerHTML = `<strong>${sender}:</strong> ${message}`;
     chatBox.appendChild(messageDiv);
     chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to the bottom
+}
+
+function appendToLastMessage(sender, text) {
+    const chatBox = document.getElementById('chat-box');
+    const lastMessageDiv = chatBox.lastElementChild;
+
+    if (lastMessageDiv && lastMessageDiv.innerHTML.includes(`<strong>${sender}:</strong>`)) {
+        lastMessageDiv.innerHTML += text;  // Append text to the existing message
+        chatBox.scrollTop = chatBox.scrollHeight;  // Auto-scroll to the bottom
+    }
 }
