@@ -5,6 +5,9 @@ document.getElementById('user-input').addEventListener('keydown', function(event
     }
 });
 
+// Create a markdown-it instance
+const md = window.markdownit(); // Access the markdown-it instance from the global window object
+
 async function sendPrompt() {
     const inputField = document.getElementById('user-input');
     const userPrompt = inputField.value.trim();  // Trim any leading or trailing whitespace
@@ -39,6 +42,18 @@ async function sendPrompt() {
             done = streamDone;
             const chunkText = decoder.decode(value, { stream: true });
             appendToLastMessage('AI', chunkText);  // Append each chunk to the last AI message
+        }
+
+        // After receiving all chunks, convert the markdown response to HTML
+        const lastMessageElement = document.querySelector('.message:last-child'); // Changed to '.message' to select the last message
+
+        // Check if the last message exists before accessing innerText
+        if (lastMessageElement) {
+            const markdownResponse = lastMessageElement.innerText; // Get the raw text
+            const htmlContent = md.render(markdownResponse); // Convert markdown to HTML using markdown-it
+            lastMessageElement.innerHTML = htmlContent; // Replace raw text with HTML
+        } else {
+            console.error('No last message found to convert.');
         }
     } catch (error) {
         console.error('Error:', error);
